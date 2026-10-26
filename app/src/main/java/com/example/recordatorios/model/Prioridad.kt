@@ -10,6 +10,8 @@ sealed class Prioridad(val nivel: Int, val nombre: String) {
     data object Baja : Prioridad(1, "Baja")
 
     companion object {
-        val todas: List<Prioridad> = listOf(Alta, Media, Baja)
+        // by lazy: si la lista se creara al inicializar Prioridad, y lo primero en
+        // usarse fuera Alta, Alta aún sería null en ese momento (ciclo de inicialización).
+        val todas: List<Prioridad> by lazy { listOf(Alta, Media, Baja) }
     }
 }
