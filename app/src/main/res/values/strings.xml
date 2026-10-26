@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Recordatorios</string>
+    <string name="titulo_pantalla">Mis recordatorios</string>
+    <string name="subtitulo_pantalla">Datos simulados · Módulo 1</string>
+    <string name="filtro_todos">Todos</string>
+    <string name="lista_vacia">No hay recordatorios con este filtro</string>
+</resources>
