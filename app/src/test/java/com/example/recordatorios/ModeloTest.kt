@@ -1,7 +1,9 @@
 package com.example.recordatorios
 
 import com.example.recordatorios.data.DatosSimulados
-import com.example.recordatorios.data.RepositorioRecordatorios
+import com.example.recordatorios.data.ordenadosPorPrioridad
+import com.example.recordatorios.data.porEstado
+import com.example.recordatorios.data.porPrioridad
 import com.example.recordatorios.model.Aviso
 import com.example.recordatorios.model.Categoria
 import com.example.recordatorios.model.Prioridad
@@ -53,9 +55,21 @@ class ModeloTest {
 
     @Test
     fun filtrosPorEstadoYPrioridad() {
-        val repo = RepositorioRecordatorios()
-        assertTrue(repo.porPrioridad(Prioridad.Alta).all { it.prioridad == Prioridad.Alta })
-        assertEquals(2, repo.porEstado("Completado").size)
-        assertEquals(1, repo.filtrar("Vencido", Prioridad.Media).size)
+        val lista = DatosSimulados.recordatorios.ordenadosPorPrioridad()
+        assertTrue(lista.porPrioridad(Prioridad.Alta).all { it.prioridad == Prioridad.Alta })
+        assertEquals(2, lista.porEstado("Completado").size)
+        assertEquals(1, lista.porEstado("Vencido").porPrioridad(Prioridad.Media).size)
+    }
+
+    @Test
+    fun tituloSeValidaSinEspaciosExtremos() {
+        assertTrue(ValidadorRecordatorio.validarTitulo("  abc  ") != null)
+        assertEquals(null, ValidadorRecordatorio.validarTitulo("  Leer  "))
+    }
+
+    @Test
+    fun descripcionDeMasDe200CaracteresEsInvalida() {
+        assertEquals(null, ValidadorRecordatorio.validarDescripcion("x".repeat(200)))
+        assertTrue(ValidadorRecordatorio.validarDescripcion("x".repeat(201)) != null)
     }
 }

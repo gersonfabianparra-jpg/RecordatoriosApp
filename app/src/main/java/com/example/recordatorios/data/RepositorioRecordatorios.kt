@@ -1,45 +1,54 @@
 package com.example.recordatorios.data
 
 import com.example.recordatorios.model.Categoria
-import com.example.recordatorios.model.EstadoRecordatorio
 import com.example.recordatorios.model.EstiloCategoria
 import com.example.recordatorios.model.Prioridad
 import com.example.recordatorios.model.Recordatorio
+import kotlinx.coroutines.flow.Flow
 
-/** Operaciones de consulta sobre las colecciones simuladas. */
-class RepositorioRecordatorios(
-    private val recordatorios: List<Recordatorio> = DatosSimulados.recordatorios,
-    val categorias: Set<Categoria> = DatosSimulados.categorias,
-    private val estilos: Map<Categoria, EstiloCategoria> = DatosSimulados.estilosPorCategoria
-) {
-    /** Todos los recordatorios, primero los de mayor prioridad. */
-    fun todos(): List<Recordatorio> =
-        recordatorios.sortedWith(compareByDescending<Recordatorio> { it.prioridad.nivel }.thenBy { it.id })
+/**
+ * Contrato de la fuente de datos. Los ViewModels dependen solo de esta interfaz,
+ * así que la implementación en memoria podrá cambiarse por Room o un servicio
+ * remoto sin tocar pantallas ni componentes.
+ */
+interface RepositorioRecordatorios {
 
-    fun porEstado(nombreEstado: String): List<Recordatorio> =
-        todos().filter { it.estado.nombre == nombreEstado }
+    /** Categorías válidas (Set: sin repetidas). */
+    val categorias: Set<Categoria>
 
-    fun porPrioridad(prioridad: Prioridad): List<Recordatorio> =
-        todos().filter { it.prioridad == prioridad }
+    /** Etiqueta y color de cada categoría. */
+    val estilos: Map<Categoria, EstiloCategoria>
 
-    /** Aplica ambos filtros; null significa "sin filtrar". */
-    fun filtrar(nombreEstado: String?, prioridad: Prioridad?): List<Recordatorio> =
-        todos().filter { r ->
-            (nombreEstado == null || r.estado.nombre == nombreEstado) &&
-                (prioridad == null || r.prioridad == prioridad)
-        }
+    /** Lista observable; vuelve a emitir cada vez que se guarda un recordatorio. */
+    fun observarRecordatorios(): Flow<List<Recordatorio>>
 
-    fun pendientes(): List<Recordatorio> =
-        todos().filter { it.estado is EstadoRecordatorio.Pendiente }
+    /** null si no existe un recordatorio con ese id. */
+    suspend fun obtenerRecordatorio(id: Long): Recordatorio?
 
-    /** Map de conteo: cuántos recordatorios hay en cada estado. */
-    fun conteoPorEstado(): Map<String, Int> =
-        recordatorios.groupingBy { it.estado.nombre }.eachCount()
-
-    /** Map de agrupación: recordatorios por categoría. */
-    fun agrupadosPorCategoria(): Map<Categoria, List<Recordatorio>> =
-        recordatorios.groupBy { it.categoria }
-
-    fun estiloDe(categoria: Categoria): EstiloCategoria =
-        estilos[categoria] ?: EstiloCategoria(categoria.nombre, 0xFF757575)
+    /** Guarda y devuelve el recordatorio con el id asignado. */
+    suspend fun guardar(borrador: BorradorRecordatorio): Recordatorio
 }
+
+/** Datos que ingresa la persona usuaria; el repositorio asigna el id. */
+data class BorradorRecordatorio(
+    val titulo: String,
+    val descripcion: String?,
+    val categoria: Categoria,
+    val prioridad: Prioridad
+)
+
+/** Situaciones que se pueden forzar para comprobar cada estado de la interfaz. */
+enum class ModoSimulacion(val etiqueta: String) {
+    NORMAL("Datos normales"),
+    VACIO("Lista vacía"),
+    ERROR_CARGA("Error al cargar"),
+    ERROR_GUARDADO("Error al guardar")
+}
+
+/** Permite cambiar el modo de simulación sin depender de la implementación. */
+interface ControlSimulacion {
+    val modo: ModoSimulacion
+    fun cambiarModo(modo: ModoSimulacion)
+}
+
+class ErrorSimulado(mensaje: String) : Exception(mensaje)

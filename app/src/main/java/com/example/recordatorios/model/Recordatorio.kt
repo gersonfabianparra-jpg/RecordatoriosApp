@@ -58,8 +58,27 @@ sealed class ResultadoValidacion {
 
 /** Reglas de negocio iniciales definidas por la organización. */
 object ValidadorRecordatorio {
+    const val TITULO_MIN = 4
     const val TITULO_MAX = 60
-    const val DESCRIPCION_MAX = 250
+    const val DESCRIPCION_MAX = 200
+
+    /** Regla por campo, reutilizada por el formulario. null = válido. */
+    fun validarTitulo(titulo: String): String? {
+        val limpio = titulo.trim()
+        return when {
+            limpio.isEmpty() -> "El título es obligatorio"
+            limpio.length < TITULO_MIN -> "El título debe tener al menos $TITULO_MIN caracteres"
+            limpio.length > TITULO_MAX -> "El título supera los $TITULO_MAX caracteres"
+            else -> null
+        }
+    }
+
+    fun validarDescripcion(descripcion: String?): String? =
+        if (descripcion != null && descripcion.length > DESCRIPCION_MAX) {
+            "La descripción supera los $DESCRIPCION_MAX caracteres"
+        } else {
+            null
+        }
 
     fun errores(
         id: Long,
@@ -69,11 +88,8 @@ object ValidadorRecordatorio {
         aviso: Aviso?
     ): List<String> = buildList {
         if (id <= 0) add("El id debe ser positivo")
-        if (titulo.isBlank()) add("El título no puede estar vacío")
-        if (titulo.length > TITULO_MAX) add("El título supera los $TITULO_MAX caracteres")
-        if (descripcion != null && descripcion.length > DESCRIPCION_MAX) {
-            add("La descripción supera los $DESCRIPCION_MAX caracteres")
-        }
+        validarTitulo(titulo)?.let(::add)
+        validarDescripcion(descripcion)?.let(::add)
         if (aviso != null && fechaLimite == null) add("Un aviso requiere una fecha límite")
     }
 

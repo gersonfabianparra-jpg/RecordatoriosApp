@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -12,40 +13,40 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.recordatorios.model.EstadoRecordatorio
 import com.example.recordatorios.model.EstiloCategoria
-import com.example.recordatorios.model.Prioridad
 import com.example.recordatorios.model.Recordatorio
-import java.time.format.DateTimeFormatter
 
-private val formatoFecha = DateTimeFormatter.ofPattern("dd/MM HH:mm")
-
+/** Un recordatorio del listado. Solo informa el clic; no sabe nada de navegación. */
 @Composable
 fun RecordatorioCard(
     recordatorio: Recordatorio,
     estilo: EstiloCategoria,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colorCategoria = Color(estilo.colorArgb)
     val completado = recordatorio.estado is EstadoRecordatorio.Completado
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { onClick(label = "Ver detalle", action = null) },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -81,12 +82,12 @@ fun RecordatorioCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Etiqueta(estilo.etiqueta, colorCategoria)
-                    Etiqueta("▲ ${recordatorio.prioridad.nombre}", colorPrioridad(recordatorio.prioridad))
-                    Etiqueta(textoEstado(recordatorio.estado), colorEstado(recordatorio.estado))
+                    EtiquetaChip(estilo.etiqueta, colorCategoria)
+                    EtiquetaChip("▲ ${recordatorio.prioridad.nombre}", colorPrioridad(recordatorio.prioridad))
+                    EtiquetaChip(textoEstado(recordatorio.estado), colorEstado(recordatorio.estado))
                 }
                 val extras = listOfNotNull(
-                    recordatorio.fechaLimite?.let { "📅 ${it.format(formatoFecha)}" },
+                    recordatorio.fechaLimite?.let { "📅 ${it.format(formatoFechaCorta)}" },
                     recordatorio.aviso?.let { "🔔 ${it.minutosAntes} min antes" },
                     recordatorio.ubicacion?.let { "📍 ${it.nombre}" }
                 )
@@ -101,40 +102,4 @@ fun RecordatorioCard(
             }
         }
     }
-}
-
-@Composable
-private fun Etiqueta(texto: String, color: Color) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.14f),
-        contentColor = color
-    ) {
-        Text(
-            text = texto,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-        )
-    }
-}
-
-private fun colorPrioridad(prioridad: Prioridad): Color = when (prioridad) {
-    Prioridad.Alta -> Color(0xFFD32F2F)
-    Prioridad.Media -> Color(0xFFF57C00)
-    Prioridad.Baja -> Color(0xFF388E3C)
-}
-
-private fun colorEstado(estado: EstadoRecordatorio): Color = when (estado) {
-    EstadoRecordatorio.Pendiente -> Color(0xFF1976D2)
-    is EstadoRecordatorio.Pospuesto -> Color(0xFF7B1FA2)
-    EstadoRecordatorio.Vencido -> Color(0xFFC62828)
-    is EstadoRecordatorio.Completado -> Color(0xFF2E7D32)
-}
-
-private fun textoEstado(estado: EstadoRecordatorio): String = when (estado) {
-    EstadoRecordatorio.Pendiente -> "Pendiente"
-    is EstadoRecordatorio.Pospuesto -> "Pospuesto ${estado.hasta.format(formatoFecha)}"
-    EstadoRecordatorio.Vencido -> "Vencido"
-    is EstadoRecordatorio.Completado -> "✓ Completado"
 }
