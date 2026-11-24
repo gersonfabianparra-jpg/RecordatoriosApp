@@ -1,8 +1,27 @@
+import java.util.Properties
+
 // AGP 9 incluye soporte de Kotlin integrado: no hace falta el plugin org.jetbrains.kotlin.android.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
+
+/**
+ * URL del servicio remoto. Se lee, en este orden, de:
+ *  1. la propiedad de Gradle -Precordatorios.api.baseUrl=...
+ *  2. local.properties (no se versiona; ver config.example.properties)
+ *  3. el valor por defecto: el servidor simulado en la máquina host vista desde el emulador.
+ * Nunca se escriben secretos en el código fuente.
+ */
+val propiedadesLocales = Properties().apply {
+    val archivo = rootProject.file("local.properties")
+    if (archivo.exists()) archivo.inputStream().use { load(it) }
+}
+val apiBaseUrl: String = (findProperty("recordatorios.api.baseUrl") as String?)
+    ?: propiedadesLocales.getProperty("recordatorios.api.baseUrl")
+    ?: "http://10.0.2.2:8080/"
 
 android {
     namespace = "com.example.recordatorios"
@@ -12,8 +31,10 @@ android {
         applicationId = "com.example.recordatorios"
         minSdk = 26 // java.time (LocalDateTime) disponible sin desugaring
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {
@@ -23,6 +44,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Para poder instalar la versión release en el emulador sin un keystore propio.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -31,7 +54,13 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+}
+
+ksp {
+    // El esquema de Room se exporta para documentar y versionar la base de datos.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -47,8 +76,23 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
 
+    // Actividad 3: persistencia, preferencias y red
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.kotlinx.serialization)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.kotlinx.serialization.json)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
+
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

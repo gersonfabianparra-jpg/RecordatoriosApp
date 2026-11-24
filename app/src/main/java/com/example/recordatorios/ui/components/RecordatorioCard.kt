@@ -99,6 +99,8 @@ fun RecordatorioCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Spacer(Modifier.height(6.dp))
+                EtiquetaSincronizacion(recordatorio.sincronizacion)
             }
         }
     }

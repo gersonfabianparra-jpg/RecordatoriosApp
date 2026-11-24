@@ -9,18 +9,22 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.recordatorios.ui.ajustes.AjustesRoute
 import com.example.recordatorios.ui.crear.CrearRecordatorioRoute
 import com.example.recordatorios.ui.detalle.DetalleRoute
 import com.example.recordatorios.ui.lista.ListaRoute
 
-/** Rutas del grafo. Al detalle solo viaja el identificador. */
+/** Rutas del grafo. Al detalle y a la edición solo viaja el identificador local. */
 object Rutas {
     const val LISTA = "lista"
     const val CREAR = "crear"
+    const val AJUSTES = "ajustes"
     const val ARG_ID = "recordatorioId"
     const val DETALLE = "detalle/{$ARG_ID}"
+    const val EDITAR = "editar/{$ARG_ID}"
 
     fun detalle(id: Long) = "detalle/$id"
+    fun editar(id: Long) = "editar/$id"
 }
 
 /**
@@ -32,6 +36,7 @@ fun RecordatoriosNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
 ) {
+    val argumentoId = listOf(navArgument(Rutas.ARG_ID) { type = NavType.LongType })
     NavHost(
         navController = navController,
         startDestination = Rutas.LISTA,
@@ -44,21 +49,33 @@ fun RecordatoriosNavHost(
                 },
                 onRecordatorioClick = { id ->
                     navController.navigate(Rutas.detalle(id)) { launchSingleTop = true }
+                },
+                onAbrirAjustes = dropUnlessResumed {
+                    navController.navigate(Rutas.AJUSTES) { launchSingleTop = true }
                 }
             )
         }
         composable(Rutas.CREAR) {
             CrearRecordatorioRoute(
-                // popBackStack vuelve al listado existente: no se apila una copia nueva.
                 onGuardado = { navController.popBackStack() },
                 onCancelar = dropUnlessResumed { navController.popBackStack() }
             )
         }
-        composable(
-            route = Rutas.DETALLE,
-            arguments = listOf(navArgument(Rutas.ARG_ID) { type = NavType.LongType })
-        ) {
-            DetalleRoute(onVolver = dropUnlessResumed { navController.popBackStack() })
+        composable(Rutas.EDITAR, arguments = argumentoId) {
+            CrearRecordatorioRoute(
+                // Vuelve al detalle, que ya muestra los cambios porque observa Room.
+                onGuardado = { navController.popBackStack() },
+                onCancelar = dropUnlessResumed { navController.popBackStack() }
+            )
+        }
+        composable(Rutas.DETALLE, arguments = argumentoId) {
+            DetalleRoute(
+                onVolver = { navController.popBackStack(Rutas.LISTA, inclusive = false) },
+                onEditar = { id -> navController.navigate(Rutas.editar(id)) { launchSingleTop = true } }
+            )
+        }
+        composable(Rutas.AJUSTES) {
+            AjustesRoute(onVolver = dropUnlessResumed { navController.popBackStack() })
         }
     }
 }

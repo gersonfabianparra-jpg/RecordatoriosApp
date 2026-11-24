@@ -20,3 +20,27 @@ D Recordatorios: Conteo por estado (Map): {Pendiente=4, Vencido=1, Completado=2,
 D Recordatorios: Prioridad alta: [Entregar informe trimestral, Turno con el médico]
 W Recordatorios: Recordatorio rechazado: [El título no puede estar vacío]
 ```
+
+# Bitácora — Actividad 3 (persistencia, red y sincronización)
+
+| # | Etapa | Problema / mensaje | Causa | Corrección | Verificación |
+|---|---|---|---|---|---|
+| 8 | Pruebas JVM | Las pruebas del repositorio quedaban en estado `Inactiva`: la sincronización nunca corría | Las corrutinas lanzadas en `backgroundScope` no cuentan para `advanceUntilIdle()` | El repositorio de prueba usa un alcance propio sobre el mismo planificador virtual, que se cancela al terminar cada prueba | 9/9 pruebas del repositorio aprobadas |
+| 9 | Pruebas JVM | `OutOfMemoryError` en `okhttp3.internal.idn.IdnaMappingTable.map` | Los atajos `Response.success/error` de Retrofit arman una respuesta con host `localhost`; en la JVM de pruebas, el mapeo IDN de la variante Android de OkHttp 5 no termina | El servidor falso arma las respuestas a mano con host `127.0.0.1` | Pruebas completas en ~5 s |
+| 10 | Pruebas instrumentadas | `NoSuchMethodError: runBlockingK$default` al ejecutar en el emulador | `kotlinx-coroutines-test` 1.11 no coincide con la versión de corrutinas empaquetada en el APK | Las pruebas de Room usan `runBlocking` y se quitó esa dependencia de `androidTest` | 5/5 pruebas de Room aprobadas en el emulador |
+| 11 | Interfaz | El listado quedaba en blanco: la fila de filtros ocupaba toda la pantalla | `VerticalDivider` dentro de una fila con `horizontalScroll` toma toda la altura disponible | Altura fija de 28 dp para el divisor | Captura 01: filtros arriba y tarjetas visibles |
+| 12 | Conectividad | Con modo avión el banner seguía en «Sincronizado» | En `onLost` se consultaba `activeNetwork`, que todavía devolvía la red perdida | `onLost` emite `false` directamente | Captura 04: «📴 Sin conexión» |
+| 13 | Red | En cada sincronización la primera petición funcionaba y la segunda fallaba como «sin conexión» | Con `retryOnConnectionFailure(false)` OkHttp no se recupera de una conexión del pool que el servidor HTTP/1.0 ya cerró | `retryOnConnectionFailure(true)`; los reintentos lógicos (5xx, timeout, sin red) siguen en el repositorio | Log: PUT, PUT, DELETE y GET en una misma sincronización sin errores |
+| 14 | Emulador | `connectedDebugAndroidTest`: «0 of which were compatible» y `hanging thread 'QEMU2 CPU'` | Compilación con Gradle y emulador a la vez en 8 GB de RAM | Reintentar con el emulador ya estable | Ejecución siguiente: 5/5 |
+
+## Evidencia de sincronización sin duplicados (servidor simulado)
+```
+PUT /recordatorios/68a8853b-…  201   ← creado sin conexión, enviado al volver la red
+PUT /recordatorios/…0002        200   ← modificación hecha sin conexión
+DELETE /recordatorios/…0003     204   ← eliminación hecha sin conexión
+*** Modo cambiado a: lento
+PUT /recordatorios/bcd0c7c3-…   201   ← el servidor lo guardó, pero la app ya había cortado por timeout
+*** Modo cambiado a: normal
+PUT /recordatorios/bcd0c7c3-…   200   ← reintento: reemplaza, no duplica
+estado final: total 4 · PUT_creados 2 · PUT_reemplazados 3 · PUT_rechazados 1 · DELETE 1
+```

@@ -3,82 +3,125 @@
 Aplicación Android de recordatorios contextuales hecha con Kotlin, Jetpack Compose y Material 3.
 
 - **Actividad 1** (etiqueta `actividad-1`): modelo de datos, validaciones y una pantalla con datos simulados.
-- **Actividad 2** (versión 0.2.0): listado, creación y detalle conectados con Navigation Compose;
+- **Actividad 2** (etiqueta `actividad-2`, versión 0.2.0): listado, creación y detalle con Navigation Compose;
   ViewModel + UiState + StateFlow; repositorio en memoria detrás de una interfaz.
+- **Actividad 3** (versión 0.3.0): persistencia local con **Room**, preferencias con **DataStore**,
+  repositorio **local-first**, servicio remoto con **Retrofit + OkHttp**, sincronización controlada sin
+  duplicados y funcionamiento **offline**.
 
 ## Requisitos
-- Android Studio reciente (probado con Rabbit 1), que trae su propio JDK.
-- Android SDK Platform 37 (compileSdk) y 36 (targetSdk), desde **SDK Manager**.
-- Un emulador (API 26 o superior) creado en **Device Manager**, o un teléfono con depuración USB.
+- Android Studio reciente (probado con JBR 25), Android SDK Platform 37 (compileSdk) y 36 (targetSdk).
+- Un emulador API 26 o superior (probado en Pixel 8, API 36) o un teléfono con depuración USB.
+- **Python 3** (solo biblioteca estándar) para el servidor simulado.
 
-## Cómo ejecutar
-1. Android Studio → **Open** → seleccionar la carpeta `RecordatoriosApp`.
-2. Esperar la **sincronización de Gradle** (descarga Gradle 9.8.2, AGP 9.4.1, Kotlin 2.4.21, Compose BOM 2026.09.00).
-   Si pide instalar el SDK 37 o aceptar licencias, aceptar.
-3. Device Manager → **Create Virtual Device** → Pixel 8 → imagen API 36 → Finish.
-4. Seleccionar el emulador y pulsar **Run ▶** (`Shift+F10` / `Ctrl+R` en Mac).
-5. En **Logcat**, filtrar por `tag:Recordatorios` para ver las colecciones y la validación rechazada.
-6. Pruebas unitarias: clic derecho en `app/src/test` → **Run 'Tests in recordatorios'**.
+## 1. Configurar
+La URL del servicio remoto **no está escrita en el código**: se lee al compilar y queda en `BuildConfig.API_BASE_URL`.
 
-## Arquitectura (Actividad 2)
+1. Copiar la línea de [`config.example.properties`](config.example.properties) en `local.properties`
+   (ese archivo no se versiona):
+   ```properties
+   recordatorios.api.baseUrl=http://10.0.2.2:8080/
+   ```
+   - `10.0.2.2` es la computadora vista desde el emulador.
+   - En un teléfono físico usar la IP de la computadora en la red Wi-Fi y agregarla en
+     `app/src/main/res/xml/network_security_config.xml` (por defecto solo se permite HTTP hacia 10.0.2.2/localhost).
+2. Si no se configura nada, se usa `http://10.0.2.2:8080/`.
+   También se puede pasar en la línea de comandos: `./gradlew installDebug -Precordatorios.api.baseUrl=http://...`.
+
+El servicio no usa credenciales ni tokens. Si en el futuro los necesitara, irían en `local.properties`
+o en variables de entorno, nunca en el código ni en DataStore.
+
+## 2. Iniciar el servidor simulado
+```bash
+cd servidor-simulado
+python3 servidor.py            # http://0.0.0.0:8080/
+```
+Guarda los datos en `servidor-simulado/datos.json` (se crea con 3 recordatorios de ejemplo).
+
+| Método | Ruta | Respuesta |
+|---|---|---|
+| GET | `/recordatorios` | 200 + lista |
+| PUT | `/recordatorios/{id}` | 201 creado · 200 reemplazado · 422 datos inválidos · 400 JSON inválido |
+| DELETE | `/recordatorios/{id}` | 204 eliminado · 404 no existe |
+| GET | `/admin/estado` | contadores (creados, reemplazados, rechazados) — evidencia de que no hay duplicados |
+| POST | `/admin/modo` `{"modo": "normal" \| "error500" \| "lento" \| "rechazar"}` | fuerza fallas para probar la app |
+| POST | `/admin/reiniciar` | vuelve a los datos iniciales |
+
+Ejemplo: `curl -X POST localhost:8080/admin/modo -d '{"modo":"error500"}'`.
+`lento` demora 20 s cada respuesta: la app corta por timeout a los 8 s.
+
+## 3. Compilar y ejecutar
+Desde Android Studio: **Open** → carpeta `RecordatoriosApp` → esperar la sincronización de Gradle →
+elegir el emulador → **Run ▶**.
+
+Desde la terminal (con `JAVA_HOME` apuntando al JDK de Android Studio):
+```bash
+./gradlew assembleDebug                 # APK en app/build/outputs/apk/debug/app-debug.apk
+./gradlew installDebug                  # instala en el emulador/dispositivo conectado
+./gradlew testDebugUnitTest             # 38 pruebas unitarias (JVM)
+./gradlew connectedDebugAndroidTest     # 5 pruebas de Room en el emulador
+```
+En Logcat, filtrar por `tag:Recordatorios` para seguir la sincronización.
+
+### Probar sin conexión
+- Modo avión del emulador, o `adb shell svc wifi disable && adb shell svc data disable`.
+- Crear, editar, completar o eliminar: los cambios aparecen al instante con «⏳ Pendiente de sincronizar».
+- Cerrar la app por completo y volver a abrirla: los datos y las preferencias siguen ahí.
+- Recuperar la red: la app sincroniza sola y cada registro pasa a «☁ Sincronizado».
+
+## Arquitectura (Actividad 3)
 
 ```
-Pantalla (@Composable)  --eventos (lambdas)-->  ViewModel  --suspend / Flow-->  RepositorioRecordatorios (interfaz)
-        ^                                          |                                   |
-        +---- StateFlow<UiState> (collectAsStateWithLifecycle)                 RepositorioRecordatoriosEnMemoria
+ Compose (Screen)  --evento-->  ViewModel  --suspend-->  RepositorioRecordatoriosLocalFirst
+      ^                            |                      |        |            |
+      |  StateFlow<UiState>        |  Flow<Preferencias>  |        |            |
+      +----------------------------+          (DataStore) |        |            |
+                                                          v        v            v
+                                                        Room    Retrofit    MonitorConectividad
+                                                   (fuente de    + OkHttp
+                                                     verdad)    (servidor)
 ```
 
-- Cada pantalla tiene un `...Route` (obtiene el ViewModel y recolecta el estado) y un `...Screen` sin estado
-  propio, que recibe el `UiState` y lambdas. Así las pantallas se pueden previsualizar y probar sin ViewModel.
-- Cada ViewModel guarda un `MutableStateFlow` privado y expone un `StateFlow` de solo lectura; los cambios
-  se hacen con `update { }`, que produce una instancia nueva e inmutable.
-- `ListaUiState` y `DetalleUiState` son `sealed interface` (Cargando, Vacío / No encontrado, Con datos, Error),
-  y la UI los recorre con un `when` exhaustivo. `FormularioUiState` es una `data class` con los campos,
-  los errores visibles y un `EstadoEnvio` sellado (Inactivo, Enviando, Éxito, Error).
-- Los ViewModels dependen de las interfaces `RepositorioRecordatorios` y `ControlSimulacion`; la
-  implementación en memoria se crea una sola vez en `ContenedorApp` (dentro de `RecordatoriosApplication`).
-- Menú **Simular** del listado: Datos normales, Lista vacía, Error al cargar y Error al guardar.
-
-## Rutas de navegación
-
-| Ruta | Pantalla | Argumentos | Cómo se llega | Cómo se vuelve |
-|---|---|---|---|---|
-| `lista` (inicial) | Listado | — | Al abrir la app | Atrás sale de la app |
-| `crear` | Formulario de creación | — | `onCrearRecordatorio` (botón Nuevo o estado vacío) | `popBackStack()` al guardar o cancelar |
-| `detalle/{recordatorioId}` | Detalle | `recordatorioId: Long` (`NavType.LongType`) | `onRecordatorioClick(id)` | `onVolver` → `popBackStack()` |
+- **Lecturas**: las pantallas solo observan Room (`Flow`) a través del ViewModel y el repositorio.
+- **Escrituras**: primero en Room con estado `PENDIENTE_*`, luego se pide una sincronización.
+- **Sincronización**: canal CONFLATED con un único consumidor + `Mutex` (nunca dos a la vez), `uuid`
+  estable generado en el dispositivo + `PUT /recordatorios/{uuid}` idempotente, y confirmación condicionada
+  a la `version` enviada. Reintento automático con espera exponencial ante 5xx/timeout.
+- **Modelos separados** con mapeos explícitos en `data/mapeo/Mapeos.kt`:
+  `RecordatorioDto` (servicio) ⇄ `RecordatorioEntity` (Room) → `Recordatorio` (dominio/UI).
 
 ## Estructura
 ```
 app/src/main/java/com/example/recordatorios/
-├── MainActivity.kt                  # Punto de entrada: tema + NavHost
-├── ContenedorApp.kt                 # Application y contenedor de dependencias
-├── model/                           # Consigna 2
-│   ├── Recordatorio.kt              # data class inmutable + Ubicacion, Aviso, validador
-│   ├── Categoria.kt                 # data class Categoria + EstiloCategoria
-│   ├── Prioridad.kt                 # sealed class Alta / Media / Baja
-│   ├── EstadoRecordatorio.kt        # sealed class Pendiente / Completado / Pospuesto / Vencido
-│   └── UiState.kt                   # sealed interface de estados de pantalla
+├── MainActivity.kt                  # tema desde DataStore + NavHost
+├── ContenedorApp.kt                 # Application + contenedor: una sola DB, DataStore, Retrofit y repositorio
+├── model/                           # dominio: Recordatorio, Prioridad, EstadoRecordatorio, EstadoSincronizacion…
 ├── data/
-│   ├── DatosSimulados.kt            # List de recordatorios, Set de categorías, Map categoría→estilo
-│   ├── RepositorioRecordatorios.kt  # interfaz, BorradorRecordatorio, ModoSimulacion, ControlSimulacion
-│   ├── RepositorioRecordatoriosEnMemoria.kt
-│   └── ConsultasRecordatorios.kt    # filtros, groupBy y conteos (extensiones de List)
+│   ├── RepositorioRecordatorios.kt          # contrato para los ViewModel + FiltroListado + estados de sync
+│   ├── RepositorioRecordatoriosLocalFirst.kt# coordina Room, Retrofit y conectividad; sincronización
+│   ├── local/        RecordatorioEntity · RecordatorioDao · RecordatoriosDatabase
+│   ├── remoto/       RecordatorioDto · RecordatoriosApi · ClienteRemoto · ResultadoRemoto (códigos HTTP)
+│   ├── mapeo/        Mapeos.kt (DTO ⇄ Entity → dominio)
+│   ├── preferencias/ PreferenciasUsuario · RepositorioPreferencias (DataStore)
+│   ├── red/          MonitorConectividad
+│   └── DatosSimulados.kt · ConsultasRecordatorios.kt (catálogo de categorías y utilidades)
 └── ui/
-    ├── lista/      ListaUiState · ListaViewModel · ListaScreen
-    ├── crear/      FormularioUiState · FormularioViewModel · CrearRecordatorioScreen
-    ├── detalle/    DetalleUiState · DetalleViewModel · DetalleScreen
-    ├── navegacion/ RecordatoriosNavHost (Rutas + NavHost)
-    ├── components/ RecordatorioCard · EstadosContenido · CamposFormulario · FilaDato · EtiquetasRecordatorio
-    └── theme/Theme.kt               # Material 3, claro/oscuro
+    ├── lista/ · crear/ (crear y editar) · detalle/ · ajustes/
+    ├── navegacion/RecordatoriosNavHost.kt   # lista, crear, editar/{id}, detalle/{id}, ajustes
+    └── components/ · theme/
+app/schemas/          # esquema exportado de Room (versión 1)
+servidor-simulado/    # servicio remoto de prueba (Python)
+config.example.properties
 ```
 
-## Correspondencia con las consignas
-| Consigna | Dónde |
-|---|---|
-| 1. Proyecto Kotlin + Compose, SDK, Gradle | `settings.gradle.kts`, `gradle/libs.versions.toml`, `app/build.gradle.kts` (compileSdk 37, targetSdk 36, minSdk 26) |
-| 2. data classes inmutables y sealed classes | `model/` — todo `val`; `init { require(...) }` impide estados inválidos (también en `copy`) |
-| 3. List, Set, Map | `DatosSimulados` (`toSet()` elimina categorías repetidas; `Map<Categoria, EstiloCategoria>`), `RepositorioRecordatorios` |
-| 4. Pantalla Compose + Material 3 | `ui/RecordatoriosScreen.kt` — título, categoría, prioridad y estado por tarjeta |
-| 5. Ejecución | Emulador Pixel 8 API 36 (ver capturas en el PDF) |
+## Rutas de navegación
+
+| Ruta | Pantalla | Argumentos |
+|---|---|---|
+| `lista` (inicial) | Listado con filtros rápidos y estado de sincronización | — |
+| `crear` | Formulario de creación | — |
+| `editar/{recordatorioId}` | Mismo formulario, precargado | `Long` |
+| `detalle/{recordatorioId}` | Detalle: editar, completar/reabrir, eliminar, reintentar sincronización | `Long` |
+| `ajustes` | Preferencias (DataStore) | — |
 
 Los problemas encontrados y su corrección están en [BITACORA.md](BITACORA.md).

@@ -37,8 +37,10 @@ import com.example.recordatorios.ui.components.BannerError
 import com.example.recordatorios.ui.components.BotonVolver
 import com.example.recordatorios.ui.components.CampoTextoValidado
 import com.example.recordatorios.ui.components.SelectorCategoria
+import com.example.recordatorios.ui.components.SelectorFecha
 import com.example.recordatorios.ui.components.SelectorPrioridad
 import com.example.recordatorios.ui.theme.RecordatoriosTheme
+import java.time.LocalDate
 
 @Composable
 fun CrearRecordatorioRoute(
@@ -50,7 +52,7 @@ fun CrearRecordatorioRoute(
     // Cuando el guardado termina bien, la navegación vuelve al listado una sola vez.
     val envio = uiState.envio
     LaunchedEffect(envio) {
-        if (envio is EstadoEnvio.Exito) onGuardado(envio.idCreado)
+        if (envio is EstadoEnvio.Exito) onGuardado(envio.idGuardado)
     }
     CrearRecordatorioScreen(
         uiState = uiState,
@@ -58,6 +60,7 @@ fun CrearRecordatorioRoute(
         onDescripcionChange = viewModel::onDescripcionChange,
         onCategoriaSeleccionada = viewModel::onCategoriaSeleccionada,
         onPrioridadSeleccionada = viewModel::onPrioridadSeleccionada,
+        onFechaSeleccionada = viewModel::onFechaSeleccionada,
         onGuardar = viewModel::onGuardar,
         onCancelar = onCancelar,
         onErrorDescartado = viewModel::onErrorDescartado
@@ -72,17 +75,18 @@ fun CrearRecordatorioScreen(
     onDescripcionChange: (String) -> Unit,
     onCategoriaSeleccionada: (Categoria) -> Unit,
     onPrioridadSeleccionada: (Prioridad) -> Unit,
+    onFechaSeleccionada: (LocalDate?) -> Unit,
     onGuardar: () -> Unit,
     onCancelar: () -> Unit,
     onErrorDescartado: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val habilitado = !uiState.enviando
+    val habilitado = !uiState.enviando && !uiState.cargando
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Nuevo recordatorio") },
+                title = { Text(if (uiState.modoEdicion) "Editar recordatorio" else "Nuevo recordatorio") },
                 navigationIcon = { BotonVolver(onVolver = onCancelar) }
             )
         }
@@ -133,6 +137,16 @@ fun CrearRecordatorioScreen(
                 onSeleccion = onPrioridadSeleccionada,
                 error = uiState.errores.prioridad,
                 enabled = habilitado
+            )
+            SelectorFecha(
+                fecha = uiState.fechaLimite?.toLocalDate(),
+                onFechaSeleccionada = onFechaSeleccionada,
+                enabled = habilitado
+            )
+            Text(
+                "Se guarda en el dispositivo aunque no haya conexión; se sincroniza después.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             val envio = uiState.envio
@@ -188,7 +202,7 @@ private fun FormularioErroresPreview() {
                 errores = ErroresFormulario(titulo = "El título debe tener al menos 4 caracteres")
             ),
             onTituloChange = {}, onDescripcionChange = {}, onCategoriaSeleccionada = {},
-            onPrioridadSeleccionada = {}, onGuardar = {}, onCancelar = {}, onErrorDescartado = {}
+            onPrioridadSeleccionada = {}, onFechaSeleccionada = {}, onGuardar = {}, onCancelar = {}, onErrorDescartado = {}
         )
     }
 }

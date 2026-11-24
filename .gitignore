@@ -8,3 +8,7 @@
 /captures
 .externalNativeBuild
 .cxx
+
+# Datos generados por el servidor simulado
+servidor-simulado/datos.json
+servidor-simulado/__pycache__/

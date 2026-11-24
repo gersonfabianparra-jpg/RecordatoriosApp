@@ -1,0 +1,166 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "71ef11410d1ffcc6643de9d3c3ae7374",
+    "entities": [
+      {
+        "tableName": "recordatorios",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uuid` TEXT NOT NULL, `titulo` TEXT NOT NULL, `descripcion` TEXT, `categoriaId` INTEGER NOT NULL, `prioridad` INTEGER NOT NULL, `estado` TEXT NOT NULL, `estadoFecha` INTEGER, `fechaLimite` INTEGER, `avisoMinutos` INTEGER, `ubicacionNombre` TEXT, `latitud` REAL, `longitud` REAL, `creadoEn` INTEGER NOT NULL, `actualizadoEn` INTEGER NOT NULL, `version` INTEGER NOT NULL, `syncEstado` TEXT NOT NULL, `intentosSync` INTEGER NOT NULL, `ultimoErrorSync` TEXT, `eliminado` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titulo",
+            "columnName": "titulo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descripcion",
+            "columnName": "descripcion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "categoriaId",
+            "columnName": "categoriaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "prioridad",
+            "columnName": "prioridad",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estadoFecha",
+            "columnName": "estadoFecha",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fechaLimite",
+            "columnName": "fechaLimite",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "avisoMinutos",
+            "columnName": "avisoMinutos",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ubicacionNombre",
+            "columnName": "ubicacionNombre",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latitud",
+            "columnName": "latitud",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "longitud",
+            "columnName": "longitud",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "creadoEn",
+            "columnName": "creadoEn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualizadoEn",
+            "columnName": "actualizadoEn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncEstado",
+            "columnName": "syncEstado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "intentosSync",
+            "columnName": "intentosSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ultimoErrorSync",
+            "columnName": "ultimoErrorSync",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "eliminado",
+            "columnName": "eliminado",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recordatorios_uuid",
+            "unique": true,
+            "columnNames": [
+              "uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_recordatorios_uuid` ON `${TABLE_NAME}` (`uuid`)"
+          },
+          {
+            "name": "index_recordatorios_syncEstado",
+            "unique": false,
+            "columnNames": [
+              "syncEstado"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recordatorios_syncEstado` ON `${TABLE_NAME}` (`syncEstado`)"
+          },
+          {
+            "name": "index_recordatorios_prioridad",
+            "unique": false,
+            "columnNames": [
+              "prioridad"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recordatorios_prioridad` ON `${TABLE_NAME}` (`prioridad`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '71ef11410d1ffcc6643de9d3c3ae7374')"
+    ]
+  }
+}

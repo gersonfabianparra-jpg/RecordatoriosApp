@@ -32,6 +32,10 @@ data class Aviso(val minutosAntes: Int) {
  *
  * Los datos opcionales (descripción, fecha límite, ubicación, aviso) son tipos
  * anulables con valor por defecto null.
+ *
+ * Actividad 3: [sincronizacion] indica si el registro ya fue confirmado por el servicio
+ * remoto y [creadoEn] cuándo se creó. Es el modelo de dominio que usan los ViewModel y la
+ * interfaz; no depende de Room ni de los DTO de Retrofit.
  */
 data class Recordatorio(
     val id: Long,
@@ -42,7 +46,9 @@ data class Recordatorio(
     val descripcion: String? = null,
     val fechaLimite: LocalDateTime? = null,
     val ubicacion: Ubicacion? = null,
-    val aviso: Aviso? = null
+    val aviso: Aviso? = null,
+    val creadoEn: LocalDateTime? = null,
+    val sincronizacion: EstadoSincronizacion = EstadoSincronizacion.Sincronizado
 ) {
     init {
         val errores = ValidadorRecordatorio.errores(id, titulo, descripcion, fechaLimite, aviso)
